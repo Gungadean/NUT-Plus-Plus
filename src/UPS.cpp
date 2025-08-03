@@ -20,46 +20,69 @@
 
 #include "UPS.h"
 
-#include <iostream>
+#include <string>
 #include <ostream>
+#include <utility>
+
+#include "Connection.h"
 
 namespace nut {
 
-    UPS::UPS(const Connection& connection, const char* ups_name, const char* ups_description) :
-        connection(connection),
-        ups_name(ups_name),
-        ups_description(ups_description)
-    {
-        std::cout << "UPS " << ups_name << " created." << std::endl;
-    }
+    UPS::UPS(const Connection& connection, std::string ups_name, std::string ups_description) :
+        m_connection(connection),
+        m_ups_name(std::move(ups_name)),
+        m_ups_description(std::move(ups_description))
+    {}
 
     UPS::~UPS() = default;
 
-    std::string& UPS::get_ups_name() {
-        return ups_name;
+    const std::string& UPS::get_ups_name() const {
+        return m_ups_name;
     }
 
-    std::string& UPS::get_ups_description() {
-        return ups_description;
+    const std::string& UPS::get_ups_description() const {
+        return m_ups_description;
     }
 
-    double UPS::get_charge() {
-
+    double UPS::get_charge() const {
+        return m_connection.get_var_double(get_ups_name(), "battery.charge");
     }
 
-    double UPS::get_load() {
-
+    double UPS::get_load() const {
+        return m_connection.get_var_double(get_ups_name(), "ups.load");
     }
 
-    std::string UPS::get_model() {
-
+    std::string UPS::get_model() const {
+        return m_connection.get_var(get_ups_name(), "ups.model");
     }
 
-    std::chrono::seconds UPS::get_runtime() {
-
+    std::string UPS::get_serial() const {
+        return m_connection.get_var(get_ups_name(), "device.serial");
     }
 
-    std::string UPS::get_serial() {
+    std::vector<std::string> UPS::get_cmd_list() const {
+        std::vector<std::string> cmds;
+        std::vector<std::vector<std::string>> raw_list = m_connection.get_var_list(get_ups_name(), "CMD");
 
+        for (auto & answer_list : raw_list) {
+            cmds.emplace_back(answer_list.at(2));
+        }
+
+        return cmds;
+    }
+
+    std::vector<std::string> UPS::get_var_list() const {
+        std::vector<std::string> vars;
+        std::vector<std::vector<std::string>> raw_list = m_connection.get_var_list(get_ups_name(), "VAR");
+
+        for (auto & answer_list : raw_list) {
+            vars.emplace_back(answer_list.at(2));
+        }
+
+        return vars;
+    }
+
+    std::string UPS::get_var(const std::string& var_name) const {
+        return m_connection.get_var(get_ups_name(), var_name);
     }
 } // nut

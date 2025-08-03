@@ -14,9 +14,21 @@ int main() {
 
     const std::vector<nut::UPS> list = connection.get_ups_list();
 
-    nut::UPS test(connection.get_ups("dummy"));
+    const nut::UPS test(connection.get_ups("dummy"));
 
     std::cout << test.get_ups_description() << std::endl;
+    std::cout << test.get_charge() << std::endl;
+    std::cout << test.get_load() << std::endl;
+    std::cout << test.get_model() << std::endl;
+    std::cout << test.get_serial() << std::endl;
+
+    for (const auto & i : test.get_cmd_list()) {
+        std::cout << i << std::endl;
+    }
+
+    for (const auto & i : test.get_var_list()) {
+        std::cout << i << std::endl;
+    }
 
     return 0;
 }

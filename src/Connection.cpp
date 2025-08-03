@@ -28,91 +28,195 @@
 #include <utility>
 
 #include "exceptions/AuthenticationException.h"
+#include "exceptions/ClientException.h"
 #include "exceptions/CommandException.h"
 #include "exceptions/ConnectionException.h"
+#include "exceptions/UPSException.h"
+#include "exceptions/VariableException.h"
 
 namespace nut {
     Connection::Connection(std::string hostname, const int port):
-        hostname(std::move(hostname)),
-        port(port),
-        connection{}
-    {
-        std::cout << "Connection object created for " << hostname << std::endl;
-    }
+        m_hostname(std::move(hostname)),
+        m_port(port),
+        m_connection{}
+    {}
 
     Connection::~Connection() {
         if (get_handle() != nullptr) {
-            upscli_disconnect(&connection);
+            upscli_disconnect(&m_connection);
         }
-        std::cout << "Connection closed." << std::endl;
     }
 
     void Connection::connect() {
-        int result = upscli_connect(get_handle(), hostname.c_str(), port, UPSCLI_CONN_TRYSSL);
+        int result = upscli_connect(get_handle(), get_hostname().c_str(), get_port(), UPSCLI_CONN_TRYSSL);
 
         if (result != 0) {
-            std::cerr << "Connection failed." << upscli_strerror(&connection) << std::endl;
-            upscli_disconnect(&connection);
-            throw std::runtime_error("Connection failed: " + std::string(upscli_strerror(get_handle())));
+            upscli_disconnect(&m_connection);
+            handle_error();
         }
-        std::cout << "Connection established." << std::endl;
     }
 
-    UPS Connection::get_ups(const std::string& ups_name) {
+    std::string Connection::get_var(const std::string &ups_name, const std::string &var_key) const {
+        const char* query[] = { "VAR", ups_name.c_str(), var_key.c_str()};
+        size_t num_queries = 3;
+        size_t num_answers;
+        char** answer_list;
+
+        if (upscli_get(get_handle(), num_queries, query, &num_answers, &answer_list) != 0) {
+            handle_error();
+        }
+
+        if (num_answers != 4) {
+            throw ClientException("Unexpected response length.");
+        }
+
+        return answer_list[3];
+    }
+
+    double Connection::get_var_double(const std::string &ups_name, const std::string &var_key) const {
+        std::string raw_double = get_var(ups_name, var_key);
+        double value;
+
+        try {
+            value = std::stod(raw_double);
+        } catch (const std::invalid_argument& e) {
+            throw ClientException(e.what());
+        } catch (const std::out_of_range& e) {
+            throw ClientException(e.what());
+        }
+
+        return value;
+    }
+
+    std::vector<std::vector<std::string>> Connection::get_var_list(const std::string &var_key) const {
+        return get_var_list("", var_key);
+    }
+
+    std::vector<std::vector<std::string>> Connection::get_var_list(const std::string &ups_name, const std::string &var_key) const {
+        std::vector<std::vector<std::string>> result;
+
+        std::vector<const char*> query;
+        size_t num_queries;
+        size_t num_answers;
+        char** answer_list;
+
+        if (ups_name.empty()) {
+            query = { var_key.c_str() };
+            num_queries = 1;
+        } else {
+            query = { var_key.c_str(), ups_name.c_str() };
+            num_queries = 2;
+        }
+
+        if (upscli_list_start(get_handle(), num_queries, query.data()) != 0) {
+            handle_error();
+        }
+
+        while (upscli_list_next(get_handle(), num_queries, query.data(), &num_answers, &answer_list) == 1) {
+            std::vector<std::string> answer_vector;
+            for (int i = 0; i < num_answers; ++i) {
+                answer_vector.emplace_back(answer_list[i]);
+            }
+            result.emplace_back(answer_vector);
+        }
+
+        return result;
+    }
+
+    UPS Connection::get_ups(const std::string& ups_name) const {
         const char* query[] = { "UPSDESC", ups_name.c_str() };
         size_t num_queries = 2;
         size_t num_answers;
         char** answer_list;
 
-        if (upscli_get(get_handle(), num_queries, query, &num_answers, &answer_list) == 0) {
-            if (num_answers == 3) {
-                return {*this, ups_name.c_str(), answer_list[2]};
-            }
+        if (upscli_get(get_handle(), num_queries, query, &num_answers, &answer_list) != 0) {
+            handle_error();
         }
 
-        throw std::runtime_error("Failed to get UPS " + std::string(upscli_strerror(get_handle())));
+        if (num_answers != 3) {
+            throw ClientException("Unexpected response length.");
+        }
+
+        return {*this, ups_name.c_str(), answer_list[2]};
     }
 
-    std::vector<UPS> Connection::get_ups_list() {
-        std::vector<UPS> result;
+    std::vector<UPS> Connection::get_ups_list() const {
+        std::vector<UPS> ups_vector;
+        const std::vector<std::vector<std::string>> result = get_var_list("UPS");;
 
-        const char* query[] = { "UPS" };
-        size_t num_queries = 1;
-        size_t num_answers;
-        char** answer_list;
-
-        if (upscli_list_start(get_handle(), num_queries, query) != 0) {
-            std::cout << "Failed to get ups list: " << std::string(upscli_strerror(get_handle())) << std::endl;
+        for (auto answer_list : result) {
+            ups_vector.emplace_back(*this, answer_list.at(1), answer_list.at(2));
         }
 
-        while (upscli_list_next(get_handle(), num_queries, query, &num_answers, &answer_list) == 1) {
-            if (num_answers == 3) {
-                const char* ups_name = answer_list[1];
-                const char* ups_description = answer_list[2];
-
-                result.emplace_back(*this, ups_name, ups_description);
-            }
-        }
-        return result;
+        return ups_vector;
     }
 
-    void Connection::handle_error() {
+    void Connection::handle_error() const {
         const int error_code = upscli_upserror(get_handle());
         const std::string error_msg = upscli_strerror(get_handle());
 
         switch (error_code) {
-            case UPSCLI_ERR_NOSUCHHOST:
-            case UPSCLI_ERR_CONNFAILURE:
-            case UPSCLI_ERR_SRVDISC:
+            // Connection Errors
+            case UPSCLI_ERR_NOSUCHHOST: // 2
+            case UPSCLI_ERR_SENDFAILURE: // 27
+            case UPSCLI_ERR_RECVFAILURE: // 28
+            case UPSCLI_ERR_SOCKFAILURE: // 29
+            case UPSCLI_ERR_BINDFAILURE: // 30
+            case UPSCLI_ERR_CONNFAILURE: // 31
+            case UPSCLI_ERR_WRITE: // 32
+            case UPSCLI_ERR_READ: // 33
+            case UPSCLI_ERR_SSLFAIL: // 36
+            case UPSCLI_ERR_SSLERR: // 37
+            case UPSCLI_ERR_SRVDISC: // 38
+            case UPSCLI_ERR_DRVNOTCONN: // 39
                 throw ConnectionException(error_msg);
-            case UPSCLI_ERR_ACCESSDENIED:
-            case UPSCLI_ERR_PWDREQUIRED:
-            case UPSCLI_ERR_PWDINCORRECT:
-            case UPSCLI_ERR_INVPASSWORD:
+
+            // Authentication Errors
+            case UPSCLI_ERR_ACCESSDENIED: // 6
+            case UPSCLI_ERR_PWDREQUIRED: // 7
+            case UPSCLI_ERR_PWDINCORRECT: // 8
+            case UPSCLI_ERR_LOGINTWICE: // 12
+            case UPSCLI_ERR_PWDSETTWICE: // 13
+            case UPSCLI_ERR_INVUSERNAME: // 23
+            case UPSCLI_ERR_USERSETTWICE: // 24
+            case UPSCLI_ERR_INVPASSWORD: // 34
+            case UPSCLI_ERR_USERREQUIRED: // 35
                 throw AuthenticationException(error_msg);
-            case UPSCLI_ERR_CMDFAILED:
-            case UPSCLI_ERR_CMDNOTSUPP:
+
+            // Variable Errors
+            case UPSCLI_ERR_VARNOTSUPP: // 1
+            case UPSCLI_ERR_VARUNKNOWN: // 11
+            case UPSCLI_ERR_UNKNOWNVAR: // 15
+            case UPSCLI_ERR_VARREADONLY: // 16
+            case UPSCLI_ERR_INVALIDVALUE: // 18
+                throw VariableException(error_msg);
+
+            // Command Errors
+            case UPSCLI_ERR_UNKINSTCMD: // 20
+            case UPSCLI_ERR_CMDFAILED: // 21
+            case UPSCLI_ERR_CMDNOTSUPP: // 22
+            case UPSCLI_ERR_UNKCOMMAND: // 25
                 throw CommandException(error_msg);
+
+            // Client and Syntax Errors
+            case UPSCLI_ERR_INVRESP: // 3
+            case UPSCLI_ERR_MISSINGARG: // 9
+            case UPSCLI_ERR_UNKNOWNTYPE: // 15
+            case UPSCLI_ERR_TOOLONG: // 17
+            case UPSCLI_ERR_INVALIDARG: // 26
+            case UPSCLI_ERR_NOMEM: // 40
+            case UPSCLI_ERR_PARSE: // 41
+            case UPSCLI_ERR_PROTOCOL: // 42
+                throw ClientException(error_msg);
+
+            // UPS Errors
+            case UPSCLI_ERR_UNKNOWNUPS: // 4
+            case UPSCLI_ERR_DATASTALE: // 10
+            case UPSCLI_ERR_SETFAILED: // 19
+                throw UPSException(error_msg);
+
+            default:
+                throw NUTException(error_msg);
 
         }
     }

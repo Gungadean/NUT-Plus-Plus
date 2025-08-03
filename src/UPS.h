@@ -23,6 +23,7 @@
 
 #include <chrono>
 #include <string>
+#include <vector>
 
 namespace nut {
 
@@ -30,21 +31,23 @@ namespace nut {
 
     class UPS {
         private:
-            const Connection& connection;
-            std::string ups_name;
-            std::string ups_description;
+            const Connection& m_connection;
+            const std::string m_ups_name;
+            const std::string m_ups_description;
         public:
-            UPS(const Connection& connection, const char* ups_name, const char* ups_description);
+            UPS(const Connection& connection, std::string ups_name, std::string ups_description);
             ~UPS();
 
-            std::string& get_ups_name();
-            std::string& get_ups_description();
+            [[nodiscard]] const std::string& get_ups_name() const;
+            [[nodiscard]] const std::string& get_ups_description() const;
 
-            double get_charge();
-            double get_load();
-            std::chrono::seconds get_runtime();
-            std::string get_model();
-            std::string get_serial();
+            [[nodiscard]] double get_charge() const;
+            [[nodiscard]] double get_load() const;
+            [[nodiscard]] std::string get_model() const;
+            [[nodiscard]] std::string get_serial() const;
+            [[nodiscard]] std::vector<std::string> get_var_list() const;
+            [[nodiscard]] std::vector<std::string> get_cmd_list() const;
+            [[nodiscard]] std::string get_var(const std::string& var_name) const;
     };
 } // nut
 

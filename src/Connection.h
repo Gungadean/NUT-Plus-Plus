@@ -34,29 +34,33 @@ namespace nut {
 
     class Connection {
     private:
-        UPSCONN_t connection;
-        std::string hostname;
-        int port;
+        UPSCONN_t m_connection;
+        std::string m_hostname;
+        int m_port;
 
     public:
         explicit Connection(std::string  hostname = "localhost", int port = 3493);
         ~Connection();
 
         void connect();
-        [[nodiscard]] UPS get_ups(const std::string& ups_name);
-        [[nodiscard]] std::vector<UPS> get_ups_list();
-        void handle_error();
+        [[nodiscard]] std::string get_var(const std::string& ups_name, const std::string& var_key) const;
+        [[nodiscard]] double get_var_double(const std::string& ups_name, const std::string& var_key) const;
+        [[nodiscard]] std::vector<std::vector<std::string>> get_var_list(const std::string& var_key) const;
+        [[nodiscard]] std::vector<std::vector<std::string>> get_var_list(const std::string& ups_name, const std::string& var_key) const;
+        [[nodiscard]] UPS get_ups(const std::string& ups_name) const;
+        [[nodiscard]] std::vector<UPS> get_ups_list() const;
+        void handle_error() const;
 
         [[nodiscard]] std::string get_hostname() const {
-            return hostname;
+            return m_hostname;
         }
 
         [[nodiscard]] int get_port() const {
-            return port;
+            return m_port;
         }
 
-        UPSCONN_t* get_handle() {
-            return &connection;
+        [[nodiscard]] UPSCONN_t* get_handle() const {
+            return const_cast<UPSCONN_t*>(&m_connection);
         }
 
 

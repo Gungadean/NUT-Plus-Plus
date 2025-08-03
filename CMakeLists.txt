@@ -24,6 +24,9 @@ add_library(nut-plus-plus STATIC
         src/exceptions/ConnectionException.h
         src/exceptions/CommandException.h
         src/exceptions/AuthenticationException.h
+        src/exceptions/UPSException.h
+        src/exceptions/ClientException.h
+        src/exceptions/VariableException.h
 )
 
 # --- Link your library against the special NUT target ---
