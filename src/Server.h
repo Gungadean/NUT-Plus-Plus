@@ -32,38 +32,99 @@ namespace nut {
 
     class UPS;
 
-    class Connection {
+    class Server {
     private:
         UPSCONN_t m_connection;
         std::string m_hostname;
         int m_port;
 
     public:
-        explicit Connection(std::string  hostname = "localhost", int port = 3493);
-        ~Connection();
+        explicit Server(std::string  hostname = "localhost", int port = 3493);
+        ~Server();
 
+        /**
+         * Initialize connection to NUT Server.
+         */
         void connect();
+
+        /**
+         * Get variable value from specified UPS.
+         * @param ups_name Name of UPS to query
+         * @param var_key Variable to be queried
+         * @return string of variable value
+         * @throws NUTException
+         */
         [[nodiscard]] std::string get_var(const std::string& ups_name, const std::string& var_key) const;
+
+        /**
+         * Get variable value from specified UPS and attempt to cast to double.
+         * @param ups_name Name of UPS to query
+         * @param var_key Variable to be queried
+         * @return double of variable value
+         * @throws NUTException, std::invalid_argument, std::out_of_range
+         */
         [[nodiscard]] double get_var_double(const std::string& ups_name, const std::string& var_key) const;
+
+        /**
+         * Query variable which returns a list with NO specified UPS.
+         * @param var_key string key to be queried
+         * @return vector of strings containing return values.
+         * @throws NUTException
+         */
         [[nodiscard]] std::vector<std::vector<std::string>> get_var_list(const std::string& var_key) const;
+
+        /**
+         * Query variable which returns a list for a specified UPS.
+         * @param ups_name string name of UPS
+         * @param var_key string key to be queried
+         * @return vector of strings containing return values.
+         * @throws NUTException
+         */
         [[nodiscard]] std::vector<std::vector<std::string>> get_var_list(const std::string& ups_name, const std::string& var_key) const;
+
+        /**
+         * Get UPS object for a specified name.
+         * @param ups_name string name of UPS
+         * @return UPS object for name.
+         * @throws NUTException
+         */
         [[nodiscard]] UPS get_ups(const std::string& ups_name) const;
+
+        /**
+         * Get list of UPS connected to this NUT server.
+         * @return vector of UPS objects
+         */
         [[nodiscard]] std::vector<UPS> get_ups_list() const;
+
+        /**
+         * Retrieve upscli error code and throw the corresponding NUT++ exception.
+         * @throws NUTException
+         */
         void handle_error() const;
 
+        /**
+         * Get hostname of NUT server.
+         * @return string hostname
+         */
         [[nodiscard]] std::string get_hostname() const {
             return m_hostname;
         }
 
+        /**
+         * Get port of NUT server.
+         * @return int port
+         */
         [[nodiscard]] int get_port() const {
             return m_port;
         }
 
+        /**
+         * Get instance of UPSCONN_t object with constant casting.
+         * @return const_cast of UPSCONN_t.
+         */
         [[nodiscard]] UPSCONN_t* get_handle() const {
             return const_cast<UPSCONN_t*>(&m_connection);
         }
-
-
     };
 }
 

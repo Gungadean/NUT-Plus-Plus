@@ -18,7 +18,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-#include "Connection.h"
+#include "Server.h"
 #include "UPS.h"
 
 #include <iostream>
@@ -35,19 +35,19 @@
 #include "exceptions/VariableException.h"
 
 namespace nut {
-    Connection::Connection(std::string hostname, const int port):
+    Server::Server(std::string hostname, const int port):
         m_hostname(std::move(hostname)),
         m_port(port),
         m_connection{}
     {}
 
-    Connection::~Connection() {
+    Server::~Server() {
         if (get_handle() != nullptr) {
             upscli_disconnect(&m_connection);
         }
     }
 
-    void Connection::connect() {
+    void Server::connect() {
         int result = upscli_connect(get_handle(), get_hostname().c_str(), get_port(), UPSCLI_CONN_TRYSSL);
 
         if (result != 0) {
@@ -56,7 +56,7 @@ namespace nut {
         }
     }
 
-    std::string Connection::get_var(const std::string &ups_name, const std::string &var_key) const {
+    std::string Server::get_var(const std::string &ups_name, const std::string &var_key) const {
         const char* query[] = { "VAR", ups_name.c_str(), var_key.c_str()};
         size_t num_queries = 3;
         size_t num_answers;
@@ -73,7 +73,7 @@ namespace nut {
         return answer_list[3];
     }
 
-    double Connection::get_var_double(const std::string &ups_name, const std::string &var_key) const {
+    double Server::get_var_double(const std::string &ups_name, const std::string &var_key) const {
         std::string raw_double = get_var(ups_name, var_key);
         double value;
 
@@ -88,11 +88,11 @@ namespace nut {
         return value;
     }
 
-    std::vector<std::vector<std::string>> Connection::get_var_list(const std::string &var_key) const {
+    std::vector<std::vector<std::string>> Server::get_var_list(const std::string &var_key) const {
         return get_var_list("", var_key);
     }
 
-    std::vector<std::vector<std::string>> Connection::get_var_list(const std::string &ups_name, const std::string &var_key) const {
+    std::vector<std::vector<std::string>> Server::get_var_list(const std::string &ups_name, const std::string &var_key) const {
         std::vector<std::vector<std::string>> result;
 
         std::vector<const char*> query;
@@ -123,7 +123,7 @@ namespace nut {
         return result;
     }
 
-    UPS Connection::get_ups(const std::string& ups_name) const {
+    UPS Server::get_ups(const std::string& ups_name) const {
         const char* query[] = { "UPSDESC", ups_name.c_str() };
         size_t num_queries = 2;
         size_t num_answers;
@@ -140,7 +140,7 @@ namespace nut {
         return {*this, ups_name.c_str(), answer_list[2]};
     }
 
-    std::vector<UPS> Connection::get_ups_list() const {
+    std::vector<UPS> Server::get_ups_list() const {
         std::vector<UPS> ups_vector;
         const std::vector<std::vector<std::string>> result = get_var_list("UPS");;
 
@@ -151,7 +151,7 @@ namespace nut {
         return ups_vector;
     }
 
-    void Connection::handle_error() const {
+    void Server::handle_error() const {
         const int error_code = upscli_upserror(get_handle());
         const std::string error_msg = upscli_strerror(get_handle());
 

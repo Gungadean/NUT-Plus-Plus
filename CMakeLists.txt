@@ -18,7 +18,7 @@ message(STATUS "Found NUT and created imported target 'PkgConfig::NUT'")
 
 # --- Define your library target ---
 add_library(nut-plus-plus STATIC
-        src/Connection.cpp
+        src/Server.cpp
         src/UPS.cpp
         src/exceptions/NUTException.h
         src/exceptions/ConnectionException.h

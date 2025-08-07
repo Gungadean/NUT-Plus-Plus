@@ -21,33 +21,76 @@
 #ifndef NUT_PLUS_PLUS_UPS_H
 #define NUT_PLUS_PLUS_UPS_H
 
-#include <chrono>
 #include <string>
 #include <vector>
 
 namespace nut {
 
-    class Connection;
+    class Server;
 
     class UPS {
         private:
-            const Connection& m_connection;
+            const Server& m_server;
             const std::string m_ups_name;
             const std::string m_ups_description;
         public:
-            UPS(const Connection& connection, std::string ups_name, std::string ups_description);
+            UPS(const Server& server, std::string ups_name, std::string ups_description);
             ~UPS();
 
-            [[nodiscard]] const std::string& get_ups_name() const;
-            [[nodiscard]] const std::string& get_ups_description() const;
+            /**
+             * Get name of UPS.
+             * @return string name
+             */
+            [[nodiscard]] const std::string& get_name() const;
 
+            /**
+             * Get description of UPS.
+             * @return string description
+             */
+            [[nodiscard]] const std::string& get_description() const;
+
+            /**
+             * Get current charge of UPS.
+             * @return double charge percent
+             */
             [[nodiscard]] double get_charge() const;
+
+            /**
+             * Get current load of UPS.
+             * @return double load percent
+             */
             [[nodiscard]] double get_load() const;
+
+            /**
+             * Get model of UPS.
+             * @return string model name
+             */
             [[nodiscard]] std::string get_model() const;
+
+            /**
+             * Get serial number of UPS.
+             * @return string serial number
+             */
             [[nodiscard]] std::string get_serial() const;
-            [[nodiscard]] std::vector<std::string> get_var_list() const;
-            [[nodiscard]] std::vector<std::string> get_cmd_list() const;
-            [[nodiscard]] std::string get_var(const std::string& var_name) const;
+
+            /**
+             * Get list of supported variables for UPS.
+             * @return vector of supported variables as strings.
+             */
+            [[nodiscard]] std::vector<std::string> get_variables_list() const;
+
+            /**
+             * Get list of supported commands for UPS.
+             * @return vector of support commands as strings.
+             */
+            [[nodiscard]] std::vector<std::string> get_command_list() const;
+
+            /**
+             * Get value of specified variable name.
+             * @param var_name name of variable to retrieve
+             * @return string value of variable
+             */
+            [[nodiscard]] std::string get_variable(const std::string& var_name) const;
     };
 } // nut
 

@@ -24,65 +24,65 @@
 #include <ostream>
 #include <utility>
 
-#include "Connection.h"
+#include "Server.h"
 
 namespace nut {
 
-    UPS::UPS(const Connection& connection, std::string ups_name, std::string ups_description) :
-        m_connection(connection),
+    UPS::UPS(const Server& server, std::string ups_name, std::string ups_description) :
+        m_server(server),
         m_ups_name(std::move(ups_name)),
         m_ups_description(std::move(ups_description))
     {}
 
     UPS::~UPS() = default;
 
-    const std::string& UPS::get_ups_name() const {
+    const std::string& UPS::get_name() const {
         return m_ups_name;
     }
 
-    const std::string& UPS::get_ups_description() const {
+    const std::string& UPS::get_description() const {
         return m_ups_description;
     }
 
     double UPS::get_charge() const {
-        return m_connection.get_var_double(get_ups_name(), "battery.charge");
+        return m_server.get_var_double(get_name(), "battery.charge");
     }
 
     double UPS::get_load() const {
-        return m_connection.get_var_double(get_ups_name(), "ups.load");
+        return m_server.get_var_double(get_name(), "ups.load");
     }
 
     std::string UPS::get_model() const {
-        return m_connection.get_var(get_ups_name(), "ups.model");
+        return m_server.get_var(get_name(), "ups.model");
     }
 
     std::string UPS::get_serial() const {
-        return m_connection.get_var(get_ups_name(), "device.serial");
+        return m_server.get_var(get_name(), "device.serial");
     }
 
-    std::vector<std::string> UPS::get_cmd_list() const {
-        std::vector<std::string> cmds;
-        std::vector<std::vector<std::string>> raw_list = m_connection.get_var_list(get_ups_name(), "CMD");
+    std::string UPS::get_variable(const std::string& var_name) const {
+        return m_server.get_var(get_name(), var_name);
+    }
 
-        for (auto & answer_list : raw_list) {
+    std::vector<std::string> UPS::get_command_list() const {
+        std::vector<std::string> cmds;
+        std::vector<std::vector<std::string>> raw_list = m_server.get_var_list(get_name(), "CMD");
+
+        for (std::vector<std::string>& answer_list : raw_list) {
             cmds.emplace_back(answer_list.at(2));
         }
 
         return cmds;
     }
 
-    std::vector<std::string> UPS::get_var_list() const {
+    std::vector<std::string> UPS::get_variables_list() const {
         std::vector<std::string> vars;
-        std::vector<std::vector<std::string>> raw_list = m_connection.get_var_list(get_ups_name(), "VAR");
+        std::vector<std::vector<std::string>> raw_list = m_server.get_var_list(get_name(), "VAR");
 
-        for (auto & answer_list : raw_list) {
+        for (std::vector<std::string>& answer_list : raw_list) {
             vars.emplace_back(answer_list.at(2));
         }
 
         return vars;
-    }
-
-    std::string UPS::get_var(const std::string& var_name) const {
-        return m_connection.get_var(get_ups_name(), var_name);
     }
 } // nut
